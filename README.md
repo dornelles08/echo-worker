@@ -80,6 +80,14 @@ O primeiro uso de `WHISPER_MODE=local` baixa os pesos do modelo para o cache do
 faster-whisper. Em produção, monte um volume de cache para evitar downloads
 repetidos.
 
+Para testar o fluxo completo (API + worker + web) com Docker, use o profile
+`full` do compose do `echo-api`:
+
+```bash
+cd ../echo-api
+docker compose --profile full up -d --build
+```
+
 ## Estrutura
 
 ```

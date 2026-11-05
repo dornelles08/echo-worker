@@ -43,7 +43,10 @@ class Storage:
             aws_secret_access_key=secret_key,
             region_name=region,
             use_ssl=use_ssl,
-            config=Config(signature_version="s3v4"),
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+            ),
         )
         self._timeout = timeout_seconds
 

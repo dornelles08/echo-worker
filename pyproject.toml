@@ -3,7 +3,7 @@ name = "echo-worker"
 version = "0.1.0"
 description = "Echo media processing worker (transcription + summary)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "boto3>=1.34.0",
     "bullmq>=2.0.0",
@@ -32,7 +32,7 @@ packages = ["src/echo_worker"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

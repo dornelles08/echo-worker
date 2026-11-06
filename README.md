@@ -21,7 +21,7 @@ criadas pela `echo-api`.
 
 ## Requisitos
 
-- Python 3.11+
+- Python 3.14+
 - [uv](https://docs.astral.sh/uv/)
 - PostgreSQL, Redis e MinIO acessíveis
 

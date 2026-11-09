@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -43,6 +45,52 @@ def _get_bool(name: str, default: bool) -> bool:
         return default
 
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _cuda_available() -> bool:
+    """Returns True when an NVIDIA GPU is usable for faster-whisper.
+
+    Prefers PyTorch when installed (faster-whisper's CUDA path typically ships
+    with it) and falls back to the ``nvidia-smi`` binary so detection works
+    even without torch.
+    """
+    try:
+        import torch  # type: ignore[import-not-found]
+
+        if torch.cuda.is_available():
+            return True
+    except ImportError:
+        pass
+
+    nvidia_smi = shutil.which("nvidia-smi")
+    if nvidia_smi:
+        try:
+            result = subprocess.run(
+                [nvidia_smi, "--query-gpu=name", "--format=csv,noheader"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return True
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    return False
+
+
+def _detect_best_device() -> str:
+    """Returns ``cuda`` when a GPU is available, otherwise ``cpu``."""
+    return "cuda" if _cuda_available() else "cpu"
+
+
+def _detect_best_compute_type(device: str) -> str:
+    """Returns the best compute_type for the given device.
+
+    CUDA uses ``float16`` (fast, minimal quality loss) and CPU uses ``int8``
+    (faster-whisper's recommended CPU default).
+    """
+    return "float16" if device == "cuda" else "int8"
 
 
 @dataclass(frozen=True)
@@ -103,6 +151,8 @@ def load_settings() -> Settings:
     whisper_mode = _get("WHISPER_MODE", "local")
     summary_mode = _get("SUMMARY_MODE", "openai")
 
+    whisper_device = _detect_best_device()
+
     if whisper_mode not in VALID_WHISPER_MODES:
         raise ConfigError(f"WHISPER_MODE must be one of {sorted(VALID_WHISPER_MODES)}")
 
@@ -126,9 +176,9 @@ def load_settings() -> Settings:
         transcription_queue=_get("TRANSCRIPTION_QUEUE", "media_transcription_queue"),
         summary_queue=_get("SUMMARY_QUEUE", "media_summary_queue"),
         whisper_mode=whisper_mode,
-        whisper_model=_get("WHISPER_MODEL", "small"),
-        whisper_device=_get("WHISPER_DEVICE", "cpu"),
-        whisper_compute_type=_get("WHISPER_COMPUTE_TYPE", "int8"),
+        whisper_model=_get("WHISPER_MODEL", "large-v3"),
+        whisper_device=whisper_device,
+        whisper_compute_type=_detect_best_compute_type(whisper_device),
         summary_mode=summary_mode,
         openai_api_key=_get("OPENAI_API_KEY", ""),
         openai_base_url=_get("OPENAI_BASE_URL", "https://api.openai.com/v1"),

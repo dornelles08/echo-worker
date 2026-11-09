@@ -16,8 +16,16 @@ def test_build_destination_keeps_media_extension(tmp_path: Path) -> None:
 
 
 def test_build_destination_falls_back_to_bin(tmp_path: Path) -> None:
-    media = make_media(filename="sem-extensao")
+    media = make_media(filename="sem-extensao", storage_key=None)
 
     destination = build_destination(tmp_path, media)
 
     assert destination == tmp_path / "media-media-1.bin"
+
+
+def test_build_destination_uses_storage_key_extension(tmp_path: Path) -> None:
+    media = make_media(filename="sem-extensao", storage_key="medias/audio.mp3")
+
+    destination = build_destination(tmp_path, media)
+
+    assert destination == tmp_path / "media-media-1.mp3"

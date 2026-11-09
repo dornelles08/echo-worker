@@ -18,10 +18,19 @@ class StorageError(RuntimeError):
     """The media file could not be retrieved."""
 
 
-def _suffix(filename: str) -> str:
-    suffix = Path(filename).suffix
+def _suffix(filename: str | None, storage_key: str | None = None) -> str:
+    """Returns the file extension, preferring ``filename`` then ``storage_key``.
 
-    return suffix if suffix else ".bin"
+    Falls back to ``.bin`` when neither has a recognisable suffix, so the
+    downstream decoder (PyAV/faster-whisper) can identify the file format.
+    """
+    for value in (filename, storage_key):
+        if value:
+            suffix = Path(value).suffix
+            if suffix:
+                return suffix
+
+    return ".bin"
 
 
 class Storage:
@@ -97,4 +106,4 @@ class Storage:
 
 
 def build_destination(directory: Path, media: MediaRecord) -> Path:
-    return directory / f"media-{media.id}{_suffix(media.filename)}"
+    return directory / f"media-{media.id}{_suffix(media.filename, media.storage_key)}"

@@ -90,6 +90,11 @@ class Storage:
         size = destination.stat().st_size
         logger.info("Downloaded %s (%d bytes) to %s", key, size, destination)
 
+        if size == 0:
+            raise StorageError(
+                f"Downloaded file {key} from bucket {self._bucket} is empty (0 bytes)"
+            )
+
         return destination
 
     def _download_from_url(self, url: str, destination: Path) -> Path:

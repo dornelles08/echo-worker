@@ -87,6 +87,9 @@ class Storage:
         except Exception as error:
             raise StorageError(f"Failed to download {key} from bucket") from error
 
+        size = destination.stat().st_size
+        logger.info("Downloaded %s (%d bytes) to %s", key, size, destination)
+
         return destination
 
     def _download_from_url(self, url: str, destination: Path) -> Path:

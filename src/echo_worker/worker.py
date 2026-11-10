@@ -16,21 +16,53 @@ from echo_worker.storage import Storage
 logger = get_logger(__name__)
 
 
+def _extract_trace_id(job: Any) -> str | None:
+    """Extrai o traceId do payload do job (enviado pelo front/API)."""
+    data = getattr(job, "data", None) or {}
+    if isinstance(data, dict):
+        return str(data.get("traceId") or "")
+    return None
+
+
 def _log_event(worker_name: str, event: str, *args: Any) -> None:
     job = args[0] if args else None
     job_id = getattr(job, "id", None)
+    trace_id = _extract_trace_id(job) if job else None
     details = args[1:]
+
+    extra: dict[str, Any] = {}
+    if trace_id:
+        extra["traceId"] = trace_id
+    if job_id:
+        extra["jobId"] = str(job_id)
 
     if event == "failed":
         error = details[0] if details else None
-        logger.error("%s worker: job %s failed: %s", worker_name, job_id, error)
+        logger.error(
+            "%s worker: job %s failed: %s",
+            worker_name,
+            job_id,
+            error,
+            extra=extra or None,
+        )
         return
 
     if event == "error":
-        logger.error("%s worker error: %s", worker_name, args[0] if args else "unknown")
+        logger.error(
+            "%s worker error: %s",
+            worker_name,
+            args[0] if args else "unknown",
+            extra=extra or None,
+        )
         return
 
-    logger.info("%s worker: job %s %s", worker_name, job_id, event)
+    logger.info(
+        "%s worker: job %s %s",
+        worker_name,
+        job_id,
+        event,
+        extra=extra or None,
+    )
 
 
 class WorkerRuntime:

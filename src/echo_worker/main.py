@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import signal
 import sys
 
 from echo_worker.config import ConfigError, load_settings
 from echo_worker.logging import get_logger, setup_logging
+from echo_worker.sentry import init_sentry
 from echo_worker.worker import WorkerRuntime
 
 logger = get_logger(__name__)
@@ -47,7 +49,16 @@ async def _serve(runtime: WorkerRuntime) -> None:
 
 async def run() -> None:
     settings = load_settings()
-    setup_logging("DEBUG" if not settings.is_production else "INFO")
+
+    # Inicializa Sentry (apenas se SENTRY_DSN_WORKER estiver definido)
+    init_sentry()
+
+    # Logs em JSON quando LOKI_URL está definido (produção com Loki)
+    use_json = bool(os.getenv("LOKI_URL"))
+    setup_logging(
+        "DEBUG" if not settings.is_production else "INFO",
+        json_output=use_json,
+    )
 
     runtime = WorkerRuntime(settings)
 

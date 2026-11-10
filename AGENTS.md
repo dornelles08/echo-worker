@@ -147,3 +147,10 @@ uv run pytest
 - Shutdown gracioso via SIGINT/SIGTERM com timeout 30s.
 - Modelos faster-whisper baixados no primeiro uso; monte volume de cache em prod.
 - Testes de job usam fakes, não tocam em Postgres/Redis/S3.
+
+### Observabilidade
+
+- **Sentry**: configurado em `src/echo_worker/sentry.py` e inicializado em `src/echo_worker/main.py`. Ativo apenas quando `SENTRY_DSN_WORKER` está preenchido. Captura exceções nos jobs de transcrição e resumo.
+- **Logs estruturados**: `src/echo_worker/logging.py` oferece `setup_logging(json_output=True)` que emite logs em JSON via `JsonFormatter`, prontos para o Loki. Ativado automaticamente quando `LOKI_URL` está definido.
+- **Correlation ID**: `worker.py` extrai o `traceId` do payload do job (enviado pela API) e inclui nos logs de eventos do worker (`completed`, `failed`, `error`) via campo `extra`. Jobs de transcrição e resumo logam duração por etapa (download, processamento, débito de minutos) com `mediaId` e `traceId`.
+- **Env vars**: `SENTRY_DSN_WORKER`, `LOKI_URL`.

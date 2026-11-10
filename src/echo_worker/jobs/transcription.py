@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -41,16 +42,25 @@ class TranscriptionJob:
 
     def process(self, data: dict[str, Any]) -> dict[str, Any]:
         media_id = str(data.get("mediaId") or "")
+        trace_id = str(data.get("traceId") or "")
 
         if not media_id:
             raise ValueError("Transcription job is missing 'mediaId'")
+
+        extra: dict[str, Any] = {"mediaId": media_id}
+        if trace_id:
+            extra["traceId"] = trace_id
 
         media = self._database.get_media(media_id)
 
         if media.transcription and media.status in TRANSCRIBED_STATUSES:
             minutes = self._database.debit_usage(media_id)
 
-            logger.info("Transcription already done for media %s, skipping", media_id)
+            logger.info(
+                "Transcription already done for media %s, skipping",
+                media_id,
+                extra=extra,
+            )
 
             return {
                 "mediaId": media_id,
@@ -58,7 +68,14 @@ class TranscriptionJob:
                 "minutesDebited": minutes,
             }
 
+        start_time = time.time()
         self._database.mark_processing_transcription(media_id)
+
+        logger.info(
+            "Transcription started for media %s",
+            media_id,
+            extra=extra,
+        )
 
         try:
             Path(self._temp_dir).mkdir(parents=True, exist_ok=True)
@@ -67,13 +84,37 @@ class TranscriptionJob:
                 destination = build_destination(Path(temp_directory), media)
                 audio_path = self._storage.download(media, destination)
 
+                download_duration = time.time() - start_time
+                logger.info(
+                    "Media downloaded for media %s in %.2fs",
+                    media_id,
+                    download_duration,
+                    extra=extra,
+                )
+
+                transcribe_start = time.time()
                 result = self._transcriber.transcribe(
                     audio_path,
                     language=media.language,
                     prompt=media.prompt,
                 )
+                transcribe_duration = time.time() - transcribe_start
+
+                logger.info(
+                    "Transcription processed for media %s in %.2fs (%s segments)",
+                    media_id,
+                    transcribe_duration,
+                    len(result.segments),
+                    extra=extra,
+                )
         except Exception:
-            logger.exception("Transcription failed for media %s", media_id)
+            total_duration = time.time() - start_time
+            logger.exception(
+                "Transcription failed for media %s after %.2fs",
+                media_id,
+                total_duration,
+                extra=extra,
+            )
             self._database.mark_failed_transcription(media_id)
             raise
 
@@ -88,11 +129,15 @@ class TranscriptionJob:
         # failure can safely run again.
         minutes = self._database.debit_usage(media_id)
 
+        total_duration = time.time() - start_time
+
         logger.info(
-            "Transcription finished for media %s (%s segments, %s minutes)",
+            "Transcription finished for media %s (%s segments, %s minutes) in %.2fs",
             media_id,
             len(result.segments),
             minutes,
+            total_duration,
+            extra=extra,
         )
 
         return {

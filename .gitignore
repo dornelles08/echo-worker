@@ -1,14 +1,27 @@
-.venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
+# Dependencies
 .env
-.env.*
-!.env.example
+.venv/
+venv/
+__pycache__/
+*.pyc
 *.egg-info/
+.eggs/
+uv.lock
+
+# Build
 dist/
-build/
-.coverage
-htmlcov/
+*.py[cod]
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
 .DS_Store
